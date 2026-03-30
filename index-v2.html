@@ -1627,6 +1627,20 @@ const TOOLS = [
   }
 
   function initAuth(){
+    // 1. 优先读取 URL 参数自动登录（支持 ?user=rtx 或 ?rtx=xxx&name=姓名）
+    const params = new URLSearchParams(window.location.search);
+    const urlRtx  = params.get('user') || params.get('rtx') || params.get('staffname');
+    const urlName = params.get('name') || urlRtx; // 没传name就用rtx代替
+    if(urlRtx){
+      const userData = { name: urlName, rtx: urlRtx };
+      localStorage.setItem('ai_user', JSON.stringify(userData));
+      renderUser(urlName, urlRtx);
+      // 清除 URL 参数，避免分享链接时带着别人的账号
+      const cleanUrl = window.location.pathname + (window.location.hash || '');
+      window.history.replaceState({}, '', cleanUrl);
+      return;
+    }
+    // 2. 读取 localStorage 已保存的登录态
     const saved = localStorage.getItem('ai_user');
     if(saved){
       try {
@@ -1634,6 +1648,7 @@ const TOOLS = [
         if(u.name) { renderUser(u.name, u.rtx); return; }
       } catch(e){}
     }
+    // 3. 未登录，显示登录按钮
     loginBtn.style.display = 'inline-flex';
     userEl.style.display = 'none';
   }
