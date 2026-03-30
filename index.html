@@ -755,42 +755,8 @@ mark { background: #fef08a; color: var(--gray-900); border-radius: 2px; padding:
       ⚡ <span>Token 用量</span>
     </a>
     <span class="nav-stat" id="navStat">收录 0 个工具</span>
-    <!-- 未登录 -->
-    <button class="nav-login-btn" id="navLoginBtn" style="display:none">
-      👤 登录
-    </button>
-    <!-- 已登录 -->
-    <div class="nav-user" id="navUser" style="display:none" onclick="toggleUserDropdown(event)">
-      <div class="nav-user-avatar" id="navUserAvatar"></div>
-      <span class="nav-user-name" id="navUserName"></span>
-      <div class="nav-user-dropdown" id="navUserDropdown">
-        <div class="nav-user-dropdown-item" onclick="showUserInfo(event)">👤 个人信息</div>
-        <div class="nav-user-dropdown-item danger" onclick="doLogout(event)">🚪 退出登录</div>
-      </div>
-    </div>
   </div>
 </nav>
-
-<!-- 登录弹窗 -->
-<div class="login-overlay" id="loginOverlay">
-  <div class="login-modal">
-    <div class="login-logo">🦞</div>
-    <div class="login-title">AI 图鉴 · 鹅厂版</div>
-    <div class="login-sub">登录后可投票、评论、收藏工具</div>
-    <div class="login-form">
-      <div class="login-input-wrap">
-        <label class="login-input-label" for="loginName">你的姓名</label>
-        <input class="login-input" id="loginName" type="text" placeholder="输入你的姓名，如：李文琪" autocomplete="off" maxlength="20"/>
-      </div>
-      <div class="login-input-wrap">
-        <label class="login-input-label" for="loginRtx">RTX / 工号</label>
-        <input class="login-input" id="loginRtx" type="text" placeholder="输入 RTX 账号，如：wickyli" autocomplete="off" maxlength="30"/>
-      </div>
-      <button class="login-submit" onclick="doLogin()">进入图鉴 →</button>
-    </div>
-    <div class="login-tips">仅用于展示你的身份信息，不涉及账号权限验证</div>
-  </div>
-</div>
 
 <!-- HERO -->
 <header class="hero">
@@ -1148,7 +1114,7 @@ const TOOLS = [
 
   /* ─── C3: AI 创造工坊 ─────────────────────── */
   {
-    id: 'vedas', cat: 'c1a', icon: '🧩',
+    id: 'vedas-agent', cat: 'c3', subcat: 'ppt', icon: '🧩',
     name: 'Vedas Agent',
     tags: [{ text: '🦞 龙虾系', cls: 'tag-claw' }, { text: '司内', cls: 'tag-inner' }, { text: '🔥 热门', cls: 'tag-hot' }],
     desc: '腾讯内部多模态 AI Agent，不只是 PPT！连接 Skill 市场，2 分钟生成汇报/海报/运营方案，可调用多种工具完成复杂任务。',
@@ -1182,17 +1148,6 @@ const TOOLS = [
       { label: '🚀 立即打开', url: 'https://gamma.app', icon: '✨', primary: true }
     ],
     tip: '💡 Gamma 支持"从大纲生成"，建议先写好结构再导入，生成后导出 PPT 文件在本地精修。'
-  },
-  {
-    id: 'vedas', cat: 'c3', subcat: 'ppt', icon: '🎴',
-    name: 'Vedas',
-    tags: [{ text: '司内', cls: 'tag-inner' }],
-    desc: '腾讯内部 AI 演示工具，快速生成高质量 PPT，支持模板定制与品牌风格统一，汇报提案必备。',
-    fullDesc: 'Vedas 是腾讯内部研发的 AI PPT 生成工具，支持根据主题或大纲一键生成演示文稿，内置多种商务/技术汇报模板，可定制品牌风格。适合内部汇报、项目提案、周会分享等场景。',
-    links: [
-      { label: '🚀 立即打开', url: 'https://vedas.woa.com', icon: '🎴', primary: true }
-    ],
-    tip: '💡 Vedas 为司内工具，访问需要企业内网环境，建议搭配公司模板使用效果更佳。'
   },
   {
     id: 'seedance', cat: 'c3', subcat: 'video', icon: '🎬',
@@ -1574,111 +1529,6 @@ const TOOLS = [
   });
 })();
 
-// ── 登录功能 ──
-(function(){
-  const loginBtn   = document.getElementById('navLoginBtn');
-  const userEl     = document.getElementById('navUser');
-  const avatarEl   = document.getElementById('navUserAvatar');
-  const nameEl     = document.getElementById('navUserName');
-  const overlay    = document.getElementById('loginOverlay');
-
-  function getInitials(name){ return name ? name.slice(0,1) : '?'; }
-
-  function getAvatarColor(str){
-    const colors = [
-      'linear-gradient(135deg,#f97316,#ef4444)',
-      'linear-gradient(135deg,#3b82f6,#8b5cf6)',
-      'linear-gradient(135deg,#10b981,#3b82f6)',
-      'linear-gradient(135deg,#f59e0b,#f97316)',
-      'linear-gradient(135deg,#ec4899,#8b5cf6)',
-      'linear-gradient(135deg,#22d3ee,#3b82f6)',
-    ];
-    let h = 0; for(let i=0;i<str.length;i++) h = str.charCodeAt(i)+((h<<5)-h);
-    return colors[Math.abs(h)%colors.length];
-  }
-
-  function renderUser(name, rtx){
-    avatarEl.style.background = getAvatarColor(rtx || name);
-    avatarEl.textContent = getInitials(name);
-    nameEl.textContent = name;
-    userEl.style.display = 'flex';
-    loginBtn.style.display = 'none';
-  }
-
-  function initAuth(){
-    // 1. 优先读取 URL 参数自动登录（支持 ?user=rtx 或 ?rtx=xxx&name=姓名）
-    const params = new URLSearchParams(window.location.search);
-    const urlRtx  = params.get('user') || params.get('rtx') || params.get('staffname');
-    const urlName = params.get('name') || urlRtx;
-    if(urlRtx){
-      const userData = { name: urlName, rtx: urlRtx };
-      localStorage.setItem('ai_user', JSON.stringify(userData));
-      renderUser(urlName, urlRtx);
-      // 清除 URL 参数，避免分享链接时带着别人的账号
-      const cleanUrl = window.location.pathname + (window.location.hash || '');
-      window.history.replaceState({}, '', cleanUrl);
-      return;
-    }
-    // 2. 读取 localStorage 已保存的登录态
-    const saved = localStorage.getItem('ai_user');
-    if(saved){
-      try {
-        const u = JSON.parse(saved);
-        if(u.name) { renderUser(u.name, u.rtx); return; }
-      } catch(e){}
-    }
-    // 3. 未登录，显示登录按钮
-    loginBtn.style.display = 'inline-flex';
-    userEl.style.display = 'none';
-  }
-  initAuth();
-
-  loginBtn.addEventListener('click', ()=>{ overlay.classList.add('open'); setTimeout(()=>document.getElementById('loginName').focus(),100); });
-
-  // 点击蒙层关闭
-  overlay.addEventListener('click', function(e){ if(e.target===overlay) overlay.classList.remove('open'); });
-
-  // 回车提交
-  ['loginName','loginRtx'].forEach(id=>{
-    document.getElementById(id).addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
-  });
-
-  window.doLogin = function(){
-    const name = document.getElementById('loginName').value.trim();
-    const rtx  = document.getElementById('loginRtx').value.trim();
-    if(!name){ document.getElementById('loginName').focus(); document.getElementById('loginName').style.borderColor='#ef4444'; return; }
-    document.getElementById('loginName').style.borderColor='';
-    localStorage.setItem('ai_user', JSON.stringify({name, rtx}));
-    renderUser(name, rtx);
-    overlay.classList.remove('open');
-    document.getElementById('loginName').value='';
-    document.getElementById('loginRtx').value='';
-  };
-
-  window.toggleUserDropdown = function(e){
-    e.stopPropagation();
-    document.getElementById('navUserDropdown').classList.toggle('open');
-  };
-  document.addEventListener('click', ()=>{ document.getElementById('navUserDropdown').classList.remove('open'); });
-
-  window.showUserInfo = function(e){
-    e.stopPropagation();
-    const u = JSON.parse(localStorage.getItem('ai_user')||'{}');
-    alert('👤 ' + (u.name||'') + (u.rtx ? '\nRTX：' + u.rtx : ''));
-    document.getElementById('navUserDropdown').classList.remove('open');
-  };
-
-  window.doLogout = function(e){
-    e.stopPropagation();
-    localStorage.removeItem('ai_user');
-    userEl.style.display = 'none';
-    loginBtn.style.display = 'inline-flex';
-    document.getElementById('navUserDropdown').classList.remove('open');
-  };
-
-  // 初始渲染
-  render();
-})();
 </script>
 </body>
 </html>
